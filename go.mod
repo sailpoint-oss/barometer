@@ -6,7 +6,7 @@ require (
 	github.com/danielgtaylor/huma/v2 v2.37.2
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/oliveagle/jsonpath v0.1.4
-	github.com/sailpoint-oss/barrelman v0.1.1
+	github.com/sailpoint-oss/barrelman v0.1.3
 	github.com/sailpoint-oss/navigator v0.1.3
 	github.com/spf13/cobra v1.10.2
 	gopkg.in/yaml.v3 v3.0.1
