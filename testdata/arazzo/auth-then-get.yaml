@@ -1,0 +1,41 @@
+arazzo: 1.0.1
+info:
+  title: Auth then GET workflow
+  version: 1.0.0
+sourceDescriptions:
+  - name: api
+    url: http://localhost:0/openapi.json
+    type: openapi
+workflows:
+  - workflowId: authThenGet
+    summary: Login then GET widgets with token
+    inputs:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+    steps:
+      - stepId: login
+        operationId: login
+        requestBody:
+          contentType: application/json
+          payload:
+            username: $inputs.username
+            password: $inputs.password
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs:
+          token: $response.body.token
+      - stepId: getWidgets
+        operationPath: "{$sourceDescriptions.api.url}#/paths/~1widgets/get"
+        parameters:
+          - name: Authorization
+            in: header
+            value: $steps.login.outputs.token
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs: {}
+    outputs:
+      token: $steps.login.outputs.token

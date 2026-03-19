@@ -1,0 +1,31 @@
+arazzo: 1.0.1
+info:
+  title: List then GET by ID workflow
+  version: 1.0.0
+sourceDescriptions:
+  - name: api
+    url: http://localhost:0/openapi.json
+    type: openapi
+workflows:
+  - workflowId: listThenGetById
+    summary: GET widget list then GET first widget by id
+    steps:
+      - stepId: list
+        operationPath: "{$sourceDescriptions.api.url}#/paths/~1widgets/get"
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs:
+          firstWidgetId: $response.body[0].id
+      - stepId: getWidget
+        operationId: getWidget
+        parameters:
+          - name: widgetId
+            in: path
+            value: $steps.list.outputs.firstWidgetId
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs:
+          widget: $response.body
+    outputs:
+      firstId: $steps.list.outputs.firstWidgetId
+      widget: $steps.getWidget.outputs.widget

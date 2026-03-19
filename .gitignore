@@ -1,0 +1,13 @@
+# Binary
+barometer
+
+# Test
+*.test
+coverage.out
+
+# IDE
+.idea/
+.vscode/
+
+# Build
+dist/
