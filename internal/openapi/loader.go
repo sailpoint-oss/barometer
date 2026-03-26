@@ -1,5 +1,5 @@
-// Package openapi provides loading, validation, and contract testing for OpenAPI 2.0, 3.0.x, 3.1.x, and 3.2 documents.
-// It uses the Telescope server OpenAPI IR (Index, Document, Schema, etc.) as the shared representation.
+// Package openapi provides loading, validation, and contract testing for
+// OpenAPI 3.0.x, 3.1.x, and 3.2 documents using Navigator's shared index model.
 package openapi
 
 import (
@@ -22,8 +22,9 @@ type LoadOpts struct {
 	HTTPClient *http.Client
 }
 
-// Load reads an OpenAPI document from a local path or URL and returns a Telescope Index.
-// Supports OpenAPI 3.0, 3.1, and 3.2 (YAML or JSON). OAS 2.0 is detected and rejected.
+// Load reads an OpenAPI document from a local path or URL and returns a
+// Navigator index. Supports OpenAPI 3.0, 3.1, and 3.2 (YAML or JSON).
+// Swagger/OAS 2.0 inputs are detected and rejected.
 func Load(ctx context.Context, path string, opts *LoadOpts) (*navigator.Index, error) {
 	if opts == nil {
 		opts = &LoadOpts{}
@@ -68,7 +69,7 @@ func Load(ctx context.Context, path string, opts *LoadOpts) (*navigator.Index, e
 	}
 
 	if isSwagger2(data) {
-		return nil, fmt.Errorf("openapi: OAS 2.0 (swagger) not yet supported; path=%s", path)
+		return nil, fmt.Errorf("openapi: Swagger/OAS 2.0 is not supported; path=%s", path)
 	}
 
 	idx := navigator.ParseAndIndex(data)
@@ -81,7 +82,8 @@ func Load(ctx context.Context, path string, opts *LoadOpts) (*navigator.Index, e
 	return idx, nil
 }
 
-// LoadFromIndex returns the given index as-is. Used when the caller (e.g. Telescope) already has a parsed Index.
+// LoadFromIndex returns the given index as-is when a caller already has a
+// parsed Navigator index.
 func LoadFromIndex(idx *navigator.Index) *navigator.Index {
 	return idx
 }

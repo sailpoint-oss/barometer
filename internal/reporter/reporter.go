@@ -88,26 +88,27 @@ func escapeXML(s string) string {
 	return s
 }
 
-// JSONReport is the versioned JSON output schema for programmatic consumers (e.g. Telescope).
+// JSONReport is the versioned JSON output schema for programmatic consumers
+// such as CI, GitHub Actions, and editor tooling.
 const JSONReportVersion = "1.0"
 
 type JSONReport struct {
-	Version string          `json:"version"`
-	Pass    bool            `json:"pass"`
-	OpenAPI *OpenAPIReport  `json:"openapi,omitempty"`
-	Arazzo  *ArazzoReport   `json:"arazzo,omitempty"`
-	DurationMs int64        `json:"durationMs,omitempty"`
+	Version    string         `json:"version"`
+	Pass       bool           `json:"pass"`
+	OpenAPI    *OpenAPIReport `json:"openapi,omitempty"`
+	Arazzo     *ArazzoReport  `json:"arazzo,omitempty"`
+	DurationMs int64          `json:"durationMs,omitempty"`
 }
 
 type OpenAPIReport struct {
-	Passed  int                     `json:"passed"`
-	Total   int                     `json:"total"`
+	Passed  int                      `json:"passed"`
+	Total   int                      `json:"total"`
 	Results []openapi.ContractResult `json:"results"`
 }
 
 type ArazzoReport struct {
-	Passed    int                  `json:"passed"`
-	Total     int                  `json:"total"`
+	Passed    int                       `json:"passed"`
+	Total     int                       `json:"total"`
 	Workflows []contract.WorkflowResult `json:"workflows"`
 }
 

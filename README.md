@@ -1,13 +1,13 @@
 # Barometer
 
-Barometer is a Go package, CLI, and GitHub Action for **contract testing** and validation of APIs using **OpenAPI** (2.0, 3.0.x, 3.1.x, 3.2) and **Arazzo** workflow documents. It runs requests against a live API and validates responses against the spec (status, headers, body schema) and executes multi-step Arazzo workflows.
+Barometer is a Go package, CLI, and GitHub Action for **contract testing** and validation of APIs using **OpenAPI** (3.0.x, 3.1.x, 3.2) and **Arazzo** workflow documents. It runs requests against a live API and validates responses against the spec (status, headers, body schema) and executes multi-step Arazzo workflows. Swagger/OAS 2.0 inputs are detected and rejected until dedicated runtime support is added.
 
 ## Features
 
 - **OpenAPI contract tests**: Load a spec, hit every (or filtered) operation, validate response status and body schema.
 - **Arazzo workflows**: Run multi-step API workflows with runtime expressions, success criteria, and outputs.
 - **CLI**: `barometer openapi validate|test`, `barometer arazzo validate|run`, `barometer contract test`.
-- **Output**: Human, JUnit XML, or versioned JSON for CI and tools (e.g. [Telescope](https://github.com/sailpoint-oss/telescope)).
+- **Output**: Human, JUnit XML, or versioned JSON for CI and downstream tooling.
 - **Async API**: `barometer.Start(ctx, config)` returns a `Job` for IDE/LSP integration without blocking.
 
 ## Install
@@ -19,7 +19,7 @@ go install github.com/sailpoint-oss/barometer/cmd/barometer@latest
 ## Quick start
 
 ```bash
-# Validate an OpenAPI spec
+# Validate an OpenAPI 3.x spec
 barometer openapi validate openapi.yaml
 
 # Run contract tests against a base URL
@@ -60,15 +60,33 @@ output: json      # human, junit, json
     output-format: 'junit'
 ```
 
-## Telescope integration
+## Local sibling development
 
-Barometer uses the **Telescope Go rewrite** ([schemas-and-ci-pipeline](https://github.com/sailpoint-oss/telescope/tree/schemas-and-ci-pipeline)) OpenAPI IR: the same `*openapi.Index` and typed model (Document, Operation, Schema, etc.) produced by Telescope's tree-sitter and standalone parsers. This allows:
+When changing Barometer with other Go repos in the toolchain, prefer a workspace `go.work` file:
 
-- **Go library**: Telescope (or any Go tool) can pass a pre-parsed `*openapi.Index` to `barometer.RunWithIndex(ctx, idx, baseURL, opts)` or `barometer.StartWithIndex(ctx, idx, baseURL, opts)` so parsing is done once and contract tests run against the same IR.
-- **SDK analyzer**: Register contract tests as a Telescope rule via `barometer.ContractTestAnalyzer(baseURL, opts)` in a `sdk.Rule(...).Custom(...).Register(plugin)` chain; failures appear as diagnostics at each operation's source location.
-- **CLI / async**: Run `barometer contract test --output json` or `barometer.Start(ctx, config)` for config-driven runs. Use `barometer schema` to print the versioned JSON report schema for type generation.
+```bash
+go work init .
+go work use ../navigator ../barrelman ../telescope/server
+```
 
-Development requires the Telescope server module (e.g. clone [telescope](https://github.com/sailpoint-oss/telescope) next to barometer and use `replace github.com/sailpoint-oss/telescope/server => ../telescope/server` in go.mod).
+This keeps Barometer pointed at sibling checkouts without editing `go.mod`.
+
+## Release coordination
+
+- `.github/workflows/release.yml` publishes Barometer from pushed `v*` tags after running `go test -race -count=1 ./...`.
+- Run `go test ./internal/openapi ./...` locally before tagging, especially after Navigator resolver or document-model changes.
+- For shared compatibility and bump order, use `navigator/TOOLCHAIN_BOUNDARIES.md`.
+- For runtime smoke fixtures and parity anchors, use `navigator/TOOLCHAIN_FIXTURE_MATRIX.md`.
+
+## Toolchain role
+
+Barometer is the runtime contract-testing layer in the shared OpenAPI toolchain:
+
+- `navigator` provides the canonical OpenAPI parse/index model used for request/response lookup and schema traversal.
+- `barometer` uses that model to execute live HTTP validations and Arazzo workflows.
+- `barometer` does **not** own static parsing, semantic linting, or editor UX.
+
+In other words: Navigator owns the static OpenAPI contract; Barometer owns runtime execution against that contract.
 
 ## License
 

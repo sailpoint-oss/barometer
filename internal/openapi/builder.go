@@ -25,8 +25,9 @@ func (o ParamOverrides) get(in, name string) string {
 	return o[in+":"+name]
 }
 
-// BuildRequest builds an HTTP request for the given path, method, and operation using Telescope IR types.
-// If bodyOverride is non-nil, it is used as the request body instead of building from the operation's requestBody schema.
+// BuildRequest builds an HTTP request for the given path, method, and operation
+// using Navigator-backed OpenAPI types. If bodyOverride is non-nil, it is used
+// as the request body instead of building from the operation's requestBody schema.
 func BuildRequest(ctx context.Context, idx *navigator.Index, baseURL, pathTemplate, method string, pathItem *navigator.PathItem, op *navigator.Operation, pathParams map[string]string, overrides ParamOverrides, bodyOverride []byte) (*http.Request, error) {
 	if pathItem == nil || op == nil {
 		return nil, fmt.Errorf("openapi: pathItem and operation required")
