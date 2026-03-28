@@ -1,0 +1,129 @@
+name: Barometer
+description: Run OpenAPI and Arazzo contract tests
+inputs:
+  openapi-spec:
+    description: Path or URL to OpenAPI spec
+    required: false
+  openapi-tags:
+    description: Comma-separated OpenAPI tags to include
+    required: false
+  base-url:
+    description: Base URL of the API under test
+    required: true
+  arazzo-doc:
+    description: Path or URL to Arazzo document
+    required: false
+  arazzo-workflows:
+    description: Comma-separated Arazzo workflow IDs to include
+    required: false
+  config:
+    description: Path to barometer config file (barometer.yaml)
+    required: false
+    default: barometer.yaml
+  output-format:
+    description: Output format (human, junit, json)
+    required: false
+    default: junit
+outputs:
+  result:
+    description: pass or fail
+    value: ${{ steps.run.outputs.result }}
+  report-path:
+    description: Path to report file when output is junit or json
+    value: ${{ steps.run.outputs.report-path }}
+  report-json:
+    description: Path to JSON report file when output-format is json
+    value: ${{ steps.run.outputs.report-json }}
+  report-junit:
+    description: Path to JUnit report file when output-format is junit
+    value: ${{ steps.run.outputs.report-junit }}
+runs:
+  using: composite
+  steps:
+    - name: Download Barometer
+      id: get-barometer
+      run: |
+        VER=$(curl -sL https://api.github.com/repos/sailpoint-oss/barometer/releases/latest | jq -r .tag_name)
+        echo "version=$VER" >> $GITHUB_OUTPUT
+        BIN="barometer"
+        case "$RUNNER_OS" in
+          Linux)  PLAT="linux" ;;
+          macOS)  PLAT="darwin" ;;
+          Windows) PLAT="windows"; BIN="barometer.exe" ;;
+          *) echo "Unsupported OS"; exit 1 ;;
+        esac
+        case "$RUNNER_ARCH" in
+          X64|x86_64) ARCH="amd64" ;;
+          ARM64|aarch64) ARCH="arm64" ;;
+          *) ARCH="$RUNNER_ARCH" ;;
+        esac
+        URL="https://github.com/sailpoint-oss/barometer/releases/download/${VER}/barometer_${VER}_${PLAT}_${ARCH}.tar.gz"
+        curl -sL -o barometer.tar.gz "$URL" || true
+        if [ -f barometer.tar.gz ]; then
+          tar -xzf barometer.tar.gz
+          echo "bin=$BIN" >> $GITHUB_OUTPUT
+        else
+          echo "Barometer release not found; install via go install github.com/sailpoint-oss/barometer/cmd/barometer@latest"
+          which barometer || go install github.com/sailpoint-oss/barometer/cmd/barometer@latest
+          echo "bin=barometer" >> $GITHUB_OUTPUT
+        fi
+      shell: bash
+    - name: Run contract tests
+      id: run
+      run: |
+        BIN="${{ steps.get-barometer.outputs.bin }}"
+        if [ -f "$BIN" ]; then
+          chmod +x "$BIN"
+          RUNNER="./$BIN"
+        else
+          RUNNER="barometer"
+        fi
+        CONFIG_INPUT="${{ inputs.config }}"
+        BASE_URL="${{ inputs.base-url }}"
+        FORMAT="${{ inputs.output-format }}"
+        SPEC="${{ inputs.openapi-spec }}"
+        OPENAPI_TAGS="${{ inputs.openapi-tags }}"
+        ARAZZO="${{ inputs.arazzo-doc }}"
+        ARAZZO_WORKFLOWS="${{ inputs.arazzo-workflows }}"
+        REPORT_FILE=""
+        echo "report-path=" >> $GITHUB_OUTPUT
+        echo "report-json=" >> $GITHUB_OUTPUT
+        echo "report-junit=" >> $GITHUB_OUTPUT
+        [ "$FORMAT" = "junit" ] && REPORT_FILE="barometer-report.xml"
+        [ "$FORMAT" = "json" ] && REPORT_FILE="barometer-report.json"
+        CONFIG_PATH=""
+        if [ -n "$CONFIG_INPUT" ] && [ -f "$CONFIG_INPUT" ]; then
+          CONFIG_PATH="$CONFIG_INPUT"
+        else
+          if [ -z "$SPEC" ] && [ -z "$ARAZZO" ]; then
+            echo "Either a config file or at least one of openapi-spec/arazzo-doc must be provided"
+            exit 1
+          fi
+          CONFIG_PATH="$(mktemp "${RUNNER_TEMP:-/tmp}/barometer-config.XXXXXX")"
+          python -c 'import json, sys; out_path, base_url, output_format, spec, raw_tags, arazzo_doc, raw_workflows = sys.argv[1:]; tags = [item.strip() for item in raw_tags.split(",") if item.strip()]; workflows = [item.strip() for item in raw_workflows.split(",") if item.strip()]; config = {}; config.update({"baseUrl": base_url} if base_url else {}); config.update({"output": output_format} if output_format else {}); config.update({"openapi": {"spec": spec, **({"tags": tags} if tags else {})}} if spec else {}); config.update({"arazzo": {"doc": arazzo_doc, **({"workflows": workflows} if workflows else {})}} if arazzo_doc else {}); json.dump(config, open(out_path, "w", encoding="utf-8"))' "$CONFIG_PATH" "$BASE_URL" "$FORMAT" "$SPEC" "$OPENAPI_TAGS" "$ARAZZO" "$ARAZZO_WORKFLOWS"
+        fi
+        CMD=("$RUNNER" "contract" "test" "--config" "$CONFIG_PATH" "--output" "$FORMAT")
+        if [ -n "$REPORT_FILE" ]; then
+          "${CMD[@]}" > "$REPORT_FILE"; EXIT=$?
+          echo "report-path=$REPORT_FILE" >> $GITHUB_OUTPUT
+          if [ "$FORMAT" = "json" ]; then
+            echo "report-json=$REPORT_FILE" >> $GITHUB_OUTPUT
+          fi
+          if [ "$FORMAT" = "junit" ]; then
+            echo "report-junit=$REPORT_FILE" >> $GITHUB_OUTPUT
+          fi
+        else
+          "${CMD[@]}"; EXIT=$?
+        fi
+        [ $EXIT -eq 0 ] && echo "result=pass" >> $GITHUB_OUTPUT || echo "result=fail" >> $GITHUB_OUTPUT
+        exit $EXIT
+      shell: bash
+    - name: Upload report
+      if: always() && (inputs.output-format == 'junit' || inputs.output-format == 'json')
+      uses: actions/upload-artifact@v4
+      with:
+        name: barometer-report
+        path: |
+          barometer-report.xml
+          barometer-report.json
+        if-no-files-found: ignore

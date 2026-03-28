@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sailpoint-oss/barometer/report-schema.json",
+  "title": "BarometerContractReport",
+  "description": "JSON output of barometer contract test run",
+  "type": "object",
+  "required": ["version", "pass"],
+  "properties": {
+    "version": { "type": "string", "description": "Report schema version" },
+    "pass": { "type": "boolean", "description": "True if all tests passed" },
+    "durationMs": { "type": "integer", "description": "Total duration in milliseconds" },
+    "openapi": {
+      "type": "object",
+      "properties": {
+        "passed": { "type": "integer" },
+        "total": { "type": "integer" },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string" },
+              "method": { "type": "string" },
+              "operationId": { "type": "string" },
+              "pass": { "type": "boolean" },
+              "status": { "type": "integer" },
+              "error": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "arazzo": {
+      "type": "object",
+      "properties": {
+        "passed": { "type": "integer" },
+        "total": { "type": "integer" },
+        "workflows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "workflowId": { "type": "string" },
+              "pass": { "type": "boolean" },
+              "error": { "type": "string" },
+              "outputs": { "type": "object" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

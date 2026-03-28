@@ -7,13 +7,16 @@ Barometer is a Go package, CLI, and GitHub Action for **contract testing** and v
 - **OpenAPI contract tests**: Load a spec, hit every (or filtered) operation, validate response status and body schema.
 - **Arazzo workflows**: Run multi-step API workflows with runtime expressions, success criteria, and outputs.
 - **CLI**: `barometer openapi validate|test`, `barometer arazzo validate|run`, `barometer contract test`.
-- **Output**: Human, JUnit XML, or versioned JSON for CI and downstream tooling.
+- **Output**: Human, JUnit XML, or versioned JSON with one shared report shape for CLI, action, and Go integrations.
 - **Async API**: `barometer.Start(ctx, config)` returns a `Job` for IDE/LSP integration without blocking.
 
 ## Install
 
 ```bash
 go install github.com/sailpoint-oss/barometer/cmd/barometer@latest
+
+# Go library
+go get github.com/sailpoint-oss/barometer
 ```
 
 ## Quick start
@@ -56,8 +59,30 @@ output: json      # human, junit, json
 - uses: sailpoint-oss/barometer/.github/actions/barometer@v1
   with:
     openapi-spec: './openapi.yaml'
+    openapi-tags: 'pet,store'
     base-url: 'https://api.example.com'
-    output-format: 'junit'
+    arazzo-doc: './arazzo.yaml'
+    arazzo-workflows: 'syncWidgets'
+    output-format: 'json'
+```
+
+When `config` is omitted, the action now builds one temporary contract config from the flat OpenAPI/Arazzo inputs and still executes `barometer contract test`, so report shaping stays consistent across OpenAPI-only and mixed runs.
+The action exposes `result`, `report-path`, `report-json`, and `report-junit` outputs so downstream CI steps can consume the exact artifact they need.
+
+## Go integration
+
+Import the module root package for the stable public API:
+
+```go
+input := barometer.ContractInput{
+    BaseURL:     "https://api.example.com",
+    OpenAPISpec: "./openapi.yaml",
+    ArazzoDoc:   "./arazzo.yaml",
+    Output:      barometer.FormatJSON,
+}
+
+result, err := barometer.RunInput(ctx, input, barometer.NewClient(nil))
+report := barometer.BuildReport(result, time.Second)
 ```
 
 ## Local sibling development
@@ -82,11 +107,11 @@ This keeps Barometer pointed at sibling checkouts without editing `go.mod`.
 
 Barometer is the runtime contract-testing layer in the shared OpenAPI toolchain:
 
-- `navigator` provides the canonical OpenAPI parse/index model used for request/response lookup and schema traversal.
-- `barometer` uses that model to execute live HTTP validations and Arazzo workflows.
+- `navigator` provides the canonical OpenAPI and Arazzo document-loading and validation layer.
+- `barometer` uses those static contracts to execute live HTTP validations and Arazzo workflows.
 - `barometer` does **not** own static parsing, semantic linting, or editor UX.
 
-In other words: Navigator owns the static OpenAPI contract; Barometer owns runtime execution against that contract.
+In other words: Navigator owns the static document contract; Barometer owns runtime execution against that contract. Telescope and Meridian may surface or compose Barometer runs, but Barometer remains the runtime engine.
 
 ## License
 
