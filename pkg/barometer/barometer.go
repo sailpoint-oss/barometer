@@ -94,6 +94,8 @@ type RunOpts struct {
 	Client      *Client
 	Tags        []string
 	OperationID string
+	// Credentials maps OpenAPI security scheme names to secret values (API keys, bearer tokens, etc.).
+	Credentials map[string]string
 }
 
 // LoadConfig reads a config file from disk.
@@ -102,7 +104,7 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 // NewClient returns a public runtime HTTP client.
-func NewClient(cfg *ClientConfig) *Client {
+func NewClient(cfg *ClientConfig) (*Client, error) {
 	return runner.NewClient(cfg)
 }
 
@@ -170,7 +172,11 @@ func WriteOpenAPIReport(w io.Writer, results []OpenAPIContractResult, format For
 // Run runs contract tests synchronously. It blocks until complete or context is cancelled.
 func Run(ctx context.Context, cfg *Config, client *Client) (*Result, error) {
 	if client == nil {
-		client = NewClient(nil)
+		var err error
+		client, err = NewClient(nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return contract.Run(ctx, cfg, client)
 }
@@ -186,9 +192,16 @@ func RunWithIndex(ctx context.Context, idx *navigator.Index, baseURL string, opt
 	}
 	client := opts.Client
 	if client == nil {
-		client = NewClient(nil)
+		var err error
+		client, err = NewClient(nil)
+		if err != nil {
+			return nil, err
+		}
 	}
-	contractOpts := &openapi.ContractOpts{Tags: opts.Tags, OperationID: opts.OperationID}
+	contractOpts := &openapi.ContractOpts{
+		Tags: opts.Tags, OperationID: opts.OperationID,
+		Credentials: opts.Credentials,
+	}
 	results, err := openapi.RunContract(ctx, idx, baseURL, client, contractOpts)
 	if err != nil {
 		return nil, err
@@ -219,7 +232,18 @@ func StartWithIndex(ctx context.Context, idx *navigator.Index, baseURL string, o
 	}
 	client := opts.Client
 	if client == nil {
-		client = NewClient(nil)
+		var err error
+		client, err = NewClient(nil)
+		if err != nil {
+			job := &Job{
+				state: "failed",
+				err:   err,
+				done:  make(chan struct{}),
+			}
+			close(job.done)
+			return job
+		}
+		opts.Client = client
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	job := &Job{
@@ -302,7 +326,11 @@ func Start(ctx context.Context, cfg *Config, client *Client) (*Job, error) {
 		return nil, contract.ErrConfigRequired
 	}
 	if client == nil {
-		client = NewClient(nil)
+		var err error
+		client, err = NewClient(nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	job := &Job{

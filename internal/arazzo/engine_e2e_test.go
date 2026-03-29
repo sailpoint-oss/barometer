@@ -21,7 +21,10 @@ func TestE2E_AuthThenGet(t *testing.T) {
 	bodyBytes, _ := json.Marshal(loginBody)
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, baseURL+"/auth/login", bytes.NewReader(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
-	client := runner.NewClient(nil)
+	client, err := runner.NewClient(nil)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
 	resp, err := client.Do(context.Background(), req)
 	if err != nil {
 		t.Fatalf("direct login request: %v", err)
@@ -74,7 +77,10 @@ func TestE2E_ListThenGetById(t *testing.T) {
 	doc.SourceDescriptions[0].URL = specURL
 
 	ctx := context.Background()
-	client := runner.NewClient(nil)
+	client, err := runner.NewClient(nil)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
 	out, err := doc.RunWorkflow(ctx, "listThenGetById", baseURL, nil, client)
 	if err != nil {
 		t.Fatalf("RunWorkflow: %v", err)

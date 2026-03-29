@@ -51,7 +51,11 @@ func Run(ctx context.Context, cfg *Config, client *runner.Client) (*Result, erro
 		baseURL = "http://localhost:8080"
 	}
 	if client == nil {
-		client = runner.NewClient(nil)
+		var err error
+		client, err = runner.NewClient(nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 	out := &Result{Pass: true}
 	if cfg.OpenAPI != nil {

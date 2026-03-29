@@ -22,12 +22,16 @@ func TestRun_OpenAPIConfigSucceeds(t *testing.T) {
 	baseURL, specURL, cleanup := testserver.StartTestServer(t)
 	t.Cleanup(cleanup)
 
+	cl, err := runner.NewClient(nil)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
 	result, err := Run(context.Background(), &Config{
 		BaseURL: baseURL,
 		OpenAPI: &OpenAPIConfig{
 			Spec: specURL,
 		},
-	}, runner.NewClient(nil))
+	}, cl)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}

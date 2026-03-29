@@ -39,8 +39,12 @@ func TestStart_NilConfig(t *testing.T) {
 func TestRunWithIndex_AndStartWithIndex(t *testing.T) {
 	baseURL, idx := loadTestIndex(t)
 
+	cl, err := runner.NewClient(nil)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
 	result, err := RunWithIndex(context.Background(), idx, baseURL, &RunOpts{
-		Client:      runner.NewClient(nil),
+		Client:      cl,
 		OperationID: "createWidget",
 	})
 	if err != nil {
@@ -53,8 +57,12 @@ func TestRunWithIndex_AndStartWithIndex(t *testing.T) {
 		t.Fatalf("unexpected result: %+v", result.OpenAPI)
 	}
 
+	cl2, err := runner.NewClient(nil)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
 	job := StartWithIndex(context.Background(), idx, baseURL, &RunOpts{
-		Client:      runner.NewClient(nil),
+		Client:      cl2,
 		OperationID: "createWidget",
 	})
 	if job == nil {

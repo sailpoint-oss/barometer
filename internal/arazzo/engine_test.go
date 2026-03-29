@@ -67,7 +67,10 @@ func TestRunWorkflow_Simple(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	client := runner.NewClient(nil)
+	client, err := runner.NewClient(nil)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
 	out, err := doc.RunWorkflow(ctx, "getPets", baseURL, nil, client)
 	if err != nil {
 		t.Fatalf("RunWorkflow: %v", err)
@@ -129,7 +132,10 @@ func TestRunWorkflow_WorkflowParamsMerge(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	client := runner.NewClient(nil)
+	client, err := runner.NewClient(nil)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
 	_, err = doc.RunWorkflow(ctx, "getPets", baseURL, nil, client)
 	if err != nil {
 		t.Fatalf("RunWorkflow: %v", err)
@@ -215,9 +221,12 @@ func TestRunWorkflow_StepRequestBody(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	client := runner.NewClient(nil)
+	client, err := runner.NewClient(nil)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
 	inputs := map[string]any{"petName": "Felix"}
-	_, err := doc.RunWorkflow(ctx, "createThenList", baseURL, inputs, client)
+	_, err = doc.RunWorkflow(ctx, "createThenList", baseURL, inputs, client)
 	if err != nil {
 		t.Fatalf("RunWorkflow: %v", err)
 	}

@@ -25,7 +25,11 @@ func startAndLoad(t *testing.T) (baseURL string, idx *navigator.Index, client *r
 	if err := Validate(idx); err != nil {
 		t.Fatalf("validate: %v", err)
 	}
-	return baseURL, idx, runner.NewClient(nil)
+	cl, err := runner.NewClient(nil)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	return baseURL, idx, cl
 }
 
 // runOperation runs a single operation by path and method and asserts it passes.
@@ -192,7 +196,10 @@ func TestE2E_FullContract(t *testing.T) {
 	if err := Validate(idx); err != nil {
 		t.Fatalf("validate: %v", err)
 	}
-	client := runner.NewClient(nil)
+	client, err := runner.NewClient(nil)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
 	results, err := RunContract(ctx, idx, baseURL, client, nil)
 	if err != nil {
 		t.Fatalf("run contract: %v", err)

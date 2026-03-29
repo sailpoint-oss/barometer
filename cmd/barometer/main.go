@@ -137,7 +137,10 @@ func runContractTest(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-	client := barometerapi.NewClient(nil)
+	client, err := barometerapi.NewClient(nil)
+	if err != nil {
+		return err
+	}
 	result, err := barometerapi.Run(ctx, cfg, client)
 	if err != nil {
 		return err
@@ -171,7 +174,10 @@ func runArazzoRun(cmd *cobra.Command, args []string) error {
 	if err := doc.Validate(); err != nil {
 		return err
 	}
-	client := barometerapi.NewClient(nil)
+	client, err := barometerapi.NewClient(nil)
+	if err != nil {
+		return err
+	}
 	workflowIDs := []string{arazzoWorkflowID}
 	if arazzoWorkflowID == "" {
 		for _, w := range doc.Workflows {
@@ -216,7 +222,10 @@ func runOpenAPITest(cmd *cobra.Command, args []string) error {
 	if err := openapi.Validate(idx); err != nil {
 		return fmt.Errorf("spec validation failed: %w", err)
 	}
-	client := barometerapi.NewClient(nil)
+	client, err := barometerapi.NewClient(nil)
+	if err != nil {
+		return err
+	}
 	opts := &openapi.ContractOpts{Tags: openapiTestTags}
 	results, err := openapi.RunContract(ctx, idx, baseURL, client, opts)
 	if err != nil {

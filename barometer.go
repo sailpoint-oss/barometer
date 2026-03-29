@@ -46,7 +46,7 @@ func LoadConfig(path string) (*Config, error) {
 	return pkgbarometer.LoadConfig(path)
 }
 
-func NewClient(cfg *ClientConfig) *Client {
+func NewClient(cfg *ClientConfig) (*Client, error) {
 	return pkgbarometer.NewClient(cfg)
 }
 

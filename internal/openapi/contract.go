@@ -49,6 +49,13 @@ func RunContract(ctx context.Context, idx *navigator.Index, baseURL string, clie
 			})
 			continue
 		}
+		if err := ApplySecurity(idx, op, req, opts.Credentials); err != nil {
+			results = append(results, ContractResult{
+				Path: opr.Path, Method: opr.Method, OperationID: op.OperationID,
+				Pass: false, Error: err.Error(),
+			})
+			continue
+		}
 		resp, err := client.Do(ctx, req)
 		if err != nil {
 			results = append(results, ContractResult{
@@ -77,6 +84,9 @@ func RunContract(ctx context.Context, idx *navigator.Index, baseURL string, clie
 type ContractOpts struct {
 	Tags        []string
 	OperationID string
+	// Credentials maps security scheme name (components.securitySchemes) to secret values
+	// (API keys, bearer tokens, basic "user:pass", OAuth access tokens). Resolved by the host.
+	Credentials map[string]string
 }
 
 func hasAnyTag(opTags, filter []string) bool {
