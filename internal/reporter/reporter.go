@@ -55,7 +55,7 @@ func writeOpenAPIHuman(w io.Writer, results []openapi.ContractResult, duration t
 		if r.Pass {
 			passed++
 		} else {
-			fmt.Fprintf(w, "FAIL %s %s: %s\n", r.Method, r.Path, r.Error)
+			fmt.Fprintf(w, "FAIL %s %s: %s\n", r.Method, r.Path, contractFailureMessage(r))
 		}
 	}
 	fmt.Fprintf(w, "\nOpenAPI contract: %d/%d passed in %v\n", passed, len(results), duration.Round(time.Millisecond))
@@ -84,7 +84,7 @@ func writeOpenAPIJUnit(w io.Writer, results []openapi.ContractResult, duration t
 			fmt.Fprintf(w, `    <testcase classname="%s" name="%s" time="0">
       <failure message="%s">%s</failure>
     </testcase>
-`, escapeXML(class), escapeXML(name), escapeXML(r.Error), escapeXML(r.Error))
+`, escapeXML(class), escapeXML(name), escapeXML(contractFailureMessage(r)), escapeXML(contractFailureMessage(r)))
 		} else {
 			fmt.Fprintf(w, `    <testcase classname="%s" name="%s" time="0"/>
 `, escapeXML(class), escapeXML(name))
@@ -102,7 +102,7 @@ func writeContractHuman(w io.Writer, result *contract.Result, duration time.Dura
 	if result.OpenAPI != nil {
 		for _, r := range result.OpenAPI.Results {
 			if !r.Pass {
-				fmt.Fprintf(w, "FAIL %s %s: %s\n", r.Method, r.Path, r.Error)
+				fmt.Fprintf(w, "FAIL %s %s: %s\n", r.Method, r.Path, contractFailureMessage(r))
 			}
 		}
 		fmt.Fprintf(w, "\nOpenAPI contract: %d/%d passed\n", result.OpenAPI.Passed, result.OpenAPI.Total)
@@ -161,7 +161,7 @@ func writeContractJUnit(w io.Writer, result *contract.Result, duration time.Dura
 				fmt.Fprintf(w, `    <testcase classname="%s" name="%s" time="0">
       <failure message="%s">%s</failure>
     </testcase>
-`, escapeXML(class), escapeXML(name), escapeXML(r.Error), escapeXML(r.Error))
+`, escapeXML(class), escapeXML(name), escapeXML(contractFailureMessage(r)), escapeXML(contractFailureMessage(r)))
 			} else {
 				fmt.Fprintf(w, `    <testcase classname="%s" name="%s" time="0"/>
 `, escapeXML(class), escapeXML(name))
@@ -196,6 +196,16 @@ func escapeXML(s string) string {
 	s = strings.ReplaceAll(s, "\"", "&quot;")
 	s = strings.ReplaceAll(s, "'", "&apos;")
 	return s
+}
+
+func contractFailureMessage(result openapi.ContractResult) string {
+	if result.GuidelineID == "" {
+		return result.Error
+	}
+	if result.DocURL == "" {
+		return "[" + result.GuidelineID + "] " + result.Error
+	}
+	return "[" + result.GuidelineID + "] " + result.Error + " (" + result.DocURL + ")"
 }
 
 // JSONReport is the versioned JSON output schema for programmatic consumers

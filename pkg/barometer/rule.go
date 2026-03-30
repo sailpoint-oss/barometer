@@ -2,6 +2,7 @@ package barometer
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/sailpoint-oss/barrelman"
@@ -31,11 +32,15 @@ func ContractTestRule(baseURL string, opts *RunOpts) barrelman.Rule {
 		}
 		for _, res := range result.OpenAPI.Results {
 			if !res.Pass {
+				message := res.Error
+				if res.GuidelineID != "" {
+					message = "[#" + strings.TrimPrefix(res.GuidelineID, "sp-") + "] " + message
+				}
 				opRef := idx.Operations[res.OperationID]
 				if opRef != nil && opRef.Operation != nil {
-					r.Error(opRef.Operation.Loc, "Contract test failed: %s", res.Error)
+					r.Error(opRef.Operation.Loc, "Contract test failed: %s", message)
 				} else if idx.Document != nil {
-					r.At(idx.Document.Loc, "%s %s: %s", res.Method, res.Path, res.Error)
+					r.At(idx.Document.Loc, "%s %s: %s", res.Method, res.Path, message)
 				}
 			}
 		}

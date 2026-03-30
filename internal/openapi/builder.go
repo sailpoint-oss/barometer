@@ -185,11 +185,25 @@ func paramValue(idx *navigator.Index, p *navigator.Parameter, pathParams map[str
 		if s != nil {
 			switch s.Type {
 			case "integer", "number":
-				return "0"
+				return "1"
 			case "boolean":
 				return "false"
+			case "string":
+				if strings.EqualFold(s.Format, "uuid") {
+					return "550e8400-e29b-41d4-a716-446655440000"
+				}
+				if p.In == "path" && strings.HasSuffix(strings.ToLower(p.Name), "id") {
+					return "550e8400-e29b-41d4-a716-446655440000"
+				}
+				return "test"
 			}
 		}
+	}
+	if p.In == "path" {
+		if strings.HasSuffix(strings.ToLower(p.Name), "id") {
+			return "550e8400-e29b-41d4-a716-446655440000"
+		}
+		return "test"
 	}
 	return ""
 }

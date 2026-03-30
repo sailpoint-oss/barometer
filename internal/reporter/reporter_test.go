@@ -61,6 +61,50 @@ func TestWriteOpenAPIResults_JSONShape(t *testing.T) {
 	}
 }
 
+func TestWriteOpenAPIResults_JSONIncludesGuidelineMetadata(t *testing.T) {
+	results := []openapi.ContractResult{
+		{
+			Path:        "/widgets",
+			Method:      "GET",
+			OperationID: "listWidgets",
+			Pass:        false,
+			Status:      404,
+			Error:       "problem details missing correlationId",
+			GuidelineID: "sp-404",
+			DocURL:      "https://sailpoint-oss.github.io/sailpoint-api-guidelines/docs/rules/http-semantics#404",
+		},
+	}
+
+	var out bytes.Buffer
+	if err := WriteOpenAPIResults(&out, results, FormatJSON, 200*time.Millisecond); err != nil {
+		t.Fatalf("WriteOpenAPIResults: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal raw payload: %v", err)
+	}
+
+	openapiSection, ok := payload["openapi"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected openapi section, got %+v", payload["openapi"])
+	}
+	items, ok := openapiSection["results"].([]any)
+	if !ok || len(items) != 1 {
+		t.Fatalf("expected one result, got %+v", openapiSection["results"])
+	}
+	item, ok := items[0].(map[string]any)
+	if !ok {
+		t.Fatalf("expected result object, got %+v", items[0])
+	}
+	if item["guidelineId"] != "sp-404" {
+		t.Fatalf("guidelineId = %+v, want sp-404", item["guidelineId"])
+	}
+	if item["docUrl"] == "" {
+		t.Fatalf("docUrl missing from JSON result: %+v", item)
+	}
+}
+
 func TestWriteContractResult_IncludesOpenAPIAndArazzo(t *testing.T) {
 	result := &contract.Result{
 		Pass: false,
@@ -161,5 +205,36 @@ func TestBuildContractReport(t *testing.T) {
 	}
 	if report.OpenAPI == nil || report.OpenAPI.Total != 1 || report.Arazzo != nil {
 		t.Fatalf("unexpected report sections: %+v", report)
+	}
+}
+
+func TestBuildContractReport_PreservesGuidelineMetadata(t *testing.T) {
+	result := &contract.Result{
+		Pass: false,
+		OpenAPI: &contract.OpenAPIResult{
+			Passed: 0,
+			Total:  1,
+			Results: []openapi.ContractResult{{
+				Path:        "/widgets",
+				Method:      "GET",
+				OperationID: "listWidgets",
+				Pass:        false,
+				Status:      404,
+				Error:       "problem details missing correlationId",
+				GuidelineID: "sp-404",
+				DocURL:      "https://sailpoint-oss.github.io/sailpoint-api-guidelines/docs/rules/http-semantics#404",
+			}},
+		},
+	}
+
+	report := BuildContractReport(result, 200*time.Millisecond)
+	if report.OpenAPI == nil || len(report.OpenAPI.Results) != 1 {
+		t.Fatalf("unexpected OpenAPI report: %+v", report.OpenAPI)
+	}
+	if report.OpenAPI.Results[0].GuidelineID != "sp-404" {
+		t.Fatalf("GuidelineID = %q, want sp-404", report.OpenAPI.Results[0].GuidelineID)
+	}
+	if report.OpenAPI.Results[0].DocURL == "" {
+		t.Fatalf("expected DocURL to be preserved, got %+v", report.OpenAPI.Results[0])
 	}
 }

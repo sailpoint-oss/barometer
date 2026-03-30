@@ -20,6 +20,12 @@ import (
 func StartTestServer(t *testing.T) (baseURL, specURL string, cleanup func()) {
 	t.Helper()
 	router := chi.NewMux()
+	router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Request-Id", "123e4567-e89b-12d3-a456-426614174000")
+			next.ServeHTTP(w, r)
+		})
+	})
 	cfg := huma.DefaultConfig("Barometer Test API", "1.0.0")
 	api := humachi.New(router, cfg)
 
@@ -55,10 +61,10 @@ type LoginOutput struct {
 
 func registerAuth(api huma.API) {
 	huma.Register(api, huma.Operation{
-		OperationID: "login",
-		Method:     http.MethodPost,
-		Path:       "/auth/login",
-		Summary:    "Login and get token",
+		OperationID:   "login",
+		Method:        http.MethodPost,
+		Path:          "/auth/login",
+		Summary:       "Login and get token",
 		DefaultStatus: 200,
 	}, func(ctx context.Context, input *LoginInput) (*LoginOutput, error) {
 		out := &LoginOutput{}
@@ -122,10 +128,10 @@ func registerWidgets(api huma.API) {
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID: "createWidget",
-		Method:     http.MethodPost,
-		Path:       "/widgets",
-		Summary:    "Create widget",
+		OperationID:   "createWidget",
+		Method:        http.MethodPost,
+		Path:          "/widgets",
+		Summary:       "Create widget",
 		DefaultStatus: 201,
 	}, func(ctx context.Context, input *CreateWidgetInput) (*CreateWidgetOutput, error) {
 		out := &CreateWidgetOutput{Status: 201}
@@ -137,10 +143,10 @@ func registerWidgets(api huma.API) {
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID: "getWidget",
-		Method:      http.MethodGet,
-		Path:        "/widgets/{widgetId}",
-		Summary:     "Get widget by ID",
+		OperationID:   "getWidget",
+		Method:        http.MethodGet,
+		Path:          "/widgets/{widgetId}",
+		Summary:       "Get widget by ID",
 		DefaultStatus: 200,
 	}, func(ctx context.Context, input *GetWidgetInput) (*GetWidgetOutput, error) {
 		if input.WidgetID == "missing" {
@@ -153,10 +159,10 @@ func registerWidgets(api huma.API) {
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID: "deleteWidget",
-		Method:     http.MethodDelete,
-		Path:       "/widgets/{widgetId}",
-		Summary:    "Delete widget",
+		OperationID:   "deleteWidget",
+		Method:        http.MethodDelete,
+		Path:          "/widgets/{widgetId}",
+		Summary:       "Delete widget",
 		DefaultStatus: 204,
 	}, func(ctx context.Context, input *DeleteWidgetInput) (*struct{}, error) {
 		return nil, nil
@@ -186,10 +192,10 @@ type GetUserInput struct {
 
 func registerUsers(api huma.API) {
 	huma.Register(api, huma.Operation{
-		OperationID: "createUser",
-		Method:     http.MethodPost,
-		Path:       "/users",
-		Summary:    "Create user",
+		OperationID:   "createUser",
+		Method:        http.MethodPost,
+		Path:          "/users",
+		Summary:       "Create user",
 		DefaultStatus: 201,
 	}, func(ctx context.Context, input *CreateUserInput) (*UserOutput, error) {
 		out := &UserOutput{}
@@ -317,10 +323,10 @@ type DefaultsOutput struct {
 func registerMisc(api huma.API) {
 	huma.Register(api, huma.Operation{
 		OperationID: "getLegacy",
-		Method:     http.MethodGet,
-		Path:       "/legacy",
-		Summary:    "Deprecated endpoint",
-		Deprecated: true,
+		Method:      http.MethodGet,
+		Path:        "/legacy",
+		Summary:     "Deprecated endpoint",
+		Deprecated:  true,
 	}, func(ctx context.Context, input *struct{}) (*LegacyOutput, error) {
 		return &LegacyOutput{Body: struct {
 			Message string `json:"message"`
@@ -403,7 +409,7 @@ func registerCompositions(api huma.API) {
 // --- Discriminator (oneOf with kind) ---
 
 type CircleShape struct {
-	Kind  string  `json:"kind" enum:"circle"`
+	Kind   string  `json:"kind" enum:"circle"`
 	Radius float64 `json:"radius"`
 }
 
@@ -430,8 +436,8 @@ func registerDiscriminator(api huma.API) {
 // --- Recursive (tree) ---
 
 type TreeNode struct {
-	Value    string      `json:"value"`
-	Children []TreeNode  `json:"children,omitempty"`
+	Value    string     `json:"value"`
+	Children []TreeNode `json:"children,omitempty"`
 }
 
 type TreeOutput struct {

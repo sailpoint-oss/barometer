@@ -24,7 +24,9 @@
               "operationId": { "type": "string" },
               "pass": { "type": "boolean" },
               "status": { "type": "integer" },
-              "error": { "type": "string" }
+              "error": { "type": "string" },
+              "guidelineId": { "type": "string" },
+              "docUrl": { "type": "string" }
             }
           }
         }

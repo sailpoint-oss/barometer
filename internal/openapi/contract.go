@@ -5,18 +5,20 @@ import (
 	"fmt"
 	"strings"
 
-	navigator "github.com/sailpoint-oss/navigator"
 	"github.com/sailpoint-oss/barometer/internal/runner"
+	navigator "github.com/sailpoint-oss/navigator"
 )
 
 // ContractResult is the result of a single operation contract check.
 type ContractResult struct {
-	Path        string
-	Method      string
-	OperationID string
-	Pass        bool
-	Status      int
-	Error       string
+	Path        string `json:"path"`
+	Method      string `json:"method"`
+	OperationID string `json:"operationId"`
+	Pass        bool   `json:"pass"`
+	Status      int    `json:"status"`
+	Error       string `json:"error,omitempty"`
+	GuidelineID string `json:"guidelineId,omitempty"`
+	DocURL      string `json:"docUrl,omitempty"`
 }
 
 // RunContract runs contract tests for all (or filtered) operations in the spec against baseURL.
@@ -69,12 +71,15 @@ func RunContract(ctx context.Context, idx *navigator.Index, baseURL string, clie
 		resp.Body.Close()
 		pass := err == nil
 		errStr := ""
+		guidelineID := ""
+		docURL := ""
 		if err != nil {
 			errStr = err.Error()
+			guidelineID, docURL = guidelineMetadataFromError(err)
 		}
 		results = append(results, ContractResult{
 			Path: opr.Path, Method: opr.Method, OperationID: op.OperationID,
-			Pass: pass, Status: statusCode, Error: errStr,
+			Pass: pass, Status: statusCode, Error: errStr, GuidelineID: guidelineID, DocURL: docURL,
 		})
 	}
 	return results, nil
