@@ -200,7 +200,11 @@ func TestE2E_FullContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
-	results, err := RunContract(ctx, idx, baseURL, client, nil)
+	responseValidator, err := NewLibOpenAPIResponseValidator(ctx, specURL, client.Client)
+	if err != nil {
+		t.Fatalf("new libopenapi validator: %v", err)
+	}
+	results, err := RunContract(ctx, idx, baseURL, client, &ContractOpts{ResponseValidator: responseValidator})
 	if err != nil {
 		t.Fatalf("run contract: %v", err)
 	}

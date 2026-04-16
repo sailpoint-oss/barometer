@@ -9,10 +9,11 @@ import (
 
 // Config is the barometer config file (e.g. barometer.yaml).
 type Config struct {
-	OpenAPI *OpenAPIConfig  `yaml:"openapi,omitempty" json:"openapi,omitempty"`
-	Arazzo  *ArazzoConfig  `yaml:"arazzo,omitempty" json:"arazzo,omitempty"`
-	BaseURL string         `yaml:"baseUrl,omitempty" json:"baseUrl,omitempty"`
-	Output  string         `yaml:"output,omitempty" json:"output,omitempty"` // human, junit, json
+	OpenAPI  *OpenAPIConfig `yaml:"openapi,omitempty" json:"openapi,omitempty"`
+	Arazzo   *ArazzoConfig  `yaml:"arazzo,omitempty" json:"arazzo,omitempty"`
+	BaseURL  string         `yaml:"baseUrl,omitempty" json:"baseUrl,omitempty"`
+	ProxyURL string         `yaml:"proxyUrl,omitempty" json:"proxyUrl,omitempty"`
+	Output   string         `yaml:"output,omitempty" json:"output,omitempty"` // human, junit, json
 }
 
 // OpenAPIConfig specifies OpenAPI contract test run.

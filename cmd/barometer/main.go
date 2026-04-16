@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -39,6 +40,7 @@ var openapiValidateCmd = &cobra.Command{
 
 var openapiTestTags []string
 var openapiTestOutput string
+var openapiTestProxyURL string
 
 var openapiTestCmd = &cobra.Command{
 	Use:   "test [spec] [base-url]",
@@ -67,6 +69,7 @@ var arazzoRunCmd = &cobra.Command{
 }
 
 var arazzoWorkflowID string
+var arazzoRunProxyURL string
 
 var arazzoCmd = &cobra.Command{
 	Use:   "arazzo",
@@ -75,6 +78,7 @@ var arazzoCmd = &cobra.Command{
 
 var contractTestConfig string
 var contractTestOutput string
+var contractTestProxyURL string
 
 var contractTestCmd = &cobra.Command{
 	Use:   "test",
@@ -99,16 +103,19 @@ func init() {
 	openapiCmd.AddCommand(openapiTestCmd)
 	openapiTestCmd.Flags().StringSliceVar(&openapiTestTags, "tags", nil, "Run only operations with these tags")
 	openapiTestCmd.Flags().StringVarP(&openapiTestOutput, "output", "o", "human", "Output format: human, junit, json")
+	openapiTestCmd.Flags().StringVar(&openapiTestProxyURL, "proxy-url", "", "Route runtime requests through this proxy URL")
 
 	rootCmd.AddCommand(arazzoCmd)
 	arazzoCmd.AddCommand(arazzoValidateCmd)
 	arazzoCmd.AddCommand(arazzoRunCmd)
 	arazzoRunCmd.Flags().StringVar(&arazzoWorkflowID, "workflow", "", "Run only this workflow ID")
+	arazzoRunCmd.Flags().StringVar(&arazzoRunProxyURL, "proxy-url", "", "Route runtime requests through this proxy URL")
 
 	rootCmd.AddCommand(contractCmd)
 	contractCmd.AddCommand(contractTestCmd)
 	contractTestCmd.Flags().StringVarP(&contractTestConfig, "config", "c", "barometer.yaml", "Config file path")
 	contractTestCmd.Flags().StringVarP(&contractTestOutput, "output", "o", "human", "Output format: human, junit, json")
+	contractTestCmd.Flags().StringVar(&contractTestProxyURL, "proxy-url", "", "Override proxy URL from config")
 
 	rootCmd.AddCommand(schemaCmd)
 }
@@ -137,7 +144,10 @@ func runContractTest(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-	client, err := barometerapi.NewClient(nil)
+	if strings.TrimSpace(contractTestProxyURL) != "" {
+		cfg.ProxyURL = contractTestProxyURL
+	}
+	client, err := barometerapi.NewClient(&barometerapi.ClientConfig{ProxyURL: cfg.ProxyURL})
 	if err != nil {
 		return err
 	}
@@ -174,7 +184,7 @@ func runArazzoRun(cmd *cobra.Command, args []string) error {
 	if err := doc.Validate(); err != nil {
 		return err
 	}
-	client, err := barometerapi.NewClient(nil)
+	client, err := barometerapi.NewClient(&barometerapi.ClientConfig{ProxyURL: arazzoRunProxyURL})
 	if err != nil {
 		return err
 	}
@@ -222,11 +232,15 @@ func runOpenAPITest(cmd *cobra.Command, args []string) error {
 	if err := openapi.Validate(idx); err != nil {
 		return fmt.Errorf("spec validation failed: %w", err)
 	}
-	client, err := barometerapi.NewClient(nil)
+	client, err := barometerapi.NewClient(&barometerapi.ClientConfig{ProxyURL: openapiTestProxyURL})
 	if err != nil {
 		return err
 	}
-	opts := &openapi.ContractOpts{Tags: openapiTestTags}
+	responseValidator, err := openapi.NewLibOpenAPIResponseValidator(ctx, specPath, client.Client)
+	if err != nil {
+		return err
+	}
+	opts := &openapi.ContractOpts{Tags: openapiTestTags, ResponseValidator: responseValidator}
 	results, err := openapi.RunContract(ctx, idx, baseURL, client, opts)
 	if err != nil {
 		return err

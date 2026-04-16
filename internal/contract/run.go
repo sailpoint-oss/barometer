@@ -14,16 +14,16 @@ var ErrConfigRequired = errors.New("config is required")
 
 // Result holds the combined result of a contract test run (OpenAPI + Arazzo).
 type Result struct {
-	OpenAPI *OpenAPIResult  `json:"openapi,omitempty"`
-	Arazzo  *ArazzoResult   `json:"arazzo,omitempty"`
-	Pass    bool            `json:"pass"`
+	OpenAPI *OpenAPIResult `json:"openapi,omitempty"`
+	Arazzo  *ArazzoResult  `json:"arazzo,omitempty"`
+	Pass    bool           `json:"pass"`
 }
 
 // OpenAPIResult is the result of OpenAPI contract tests.
 type OpenAPIResult struct {
 	Results []openapi.ContractResult `json:"results"`
-	Passed  int                     `json:"passed"`
-	Total   int                     `json:"total"`
+	Passed  int                      `json:"passed"`
+	Total   int                      `json:"total"`
 }
 
 // ArazzoResult is the result of Arazzo workflow runs.
@@ -52,7 +52,7 @@ func Run(ctx context.Context, cfg *Config, client *runner.Client) (*Result, erro
 	}
 	if client == nil {
 		var err error
-		client, err = runner.NewClient(nil)
+		client, err = runner.NewClient(&runner.Config{ProxyURL: cfg.ProxyURL})
 		if err != nil {
 			return nil, err
 		}
@@ -67,6 +67,11 @@ func Run(ctx context.Context, cfg *Config, client *runner.Client) (*Result, erro
 			return nil, fmt.Errorf("openapi validate: %w", err)
 		}
 		opts := &openapi.ContractOpts{Tags: cfg.OpenAPI.Tags}
+		responseValidator, err := openapi.NewLibOpenAPIResponseValidator(ctx, cfg.OpenAPI.Spec, client.Client)
+		if err != nil {
+			return nil, fmt.Errorf("openapi libopenapi validator: %w", err)
+		}
+		opts.ResponseValidator = responseValidator
 		results, err := openapi.RunContract(ctx, idx, baseURL, client, opts)
 		if err != nil {
 			return nil, fmt.Errorf("openapi contract: %w", err)
@@ -111,9 +116,9 @@ func Run(ctx context.Context, cfg *Config, client *runner.Client) (*Result, erro
 			}
 			wfResults = append(wfResults, WorkflowResult{
 				WorkflowID: wfID,
-				Pass:      pass,
-				Error:     errStr,
-				Outputs:   outputs,
+				Pass:       pass,
+				Error:      errStr,
+				Outputs:    outputs,
 			})
 		}
 		out.Arazzo = &ArazzoResult{Workflows: wfResults, Passed: passed, Total: len(wfResults)}

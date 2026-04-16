@@ -83,10 +83,11 @@ func BuildRequest(ctx context.Context, idx *navigator.Index, baseURL, pathTempla
 	reqURL = u.String()
 
 	body := bodyOverride
+	contentType := ""
 	if body == nil && op.RequestBody != nil {
 		rb := resolveRequestBody(idx, op.RequestBody)
 		if rb != nil {
-			body, err = buildRequestBody(idx, rb)
+			body, contentType, err = buildRequestBody(idx, rb)
 			if err != nil {
 				return nil, err
 			}
@@ -101,7 +102,10 @@ func BuildRequest(ctx context.Context, idx *navigator.Index, baseURL, pathTempla
 		req.Body = io.NopCloser(bytes.NewReader(body))
 		req.ContentLength = int64(len(body))
 		if req.Header.Get("Content-Type") == "" {
-			req.Header.Set("Content-Type", "application/json")
+			if contentType == "" {
+				contentType = "application/json"
+			}
+			req.Header.Set("Content-Type", contentType)
 		}
 	}
 	for k, v := range headers {
@@ -222,37 +226,12 @@ func resolveSchema(idx *navigator.Index, s *navigator.Schema) *navigator.Schema 
 	return s
 }
 
-func buildRequestBody(idx *navigator.Index, rb *navigator.RequestBody) ([]byte, error) {
-	if rb == nil || rb.Content == nil {
-		return nil, nil
+func buildRequestBody(idx *navigator.Index, rb *navigator.RequestBody) ([]byte, string, error) {
+	mock, err := mockRequestBody(idx, rb)
+	if err != nil || mock == nil {
+		return nil, "", err
 	}
-	mt := rb.Content["application/json"]
-	if mt == nil {
-		for _, v := range rb.Content {
-			mt = v
-			break
-		}
-	}
-	if mt == nil {
-		return nil, nil
-	}
-	if mt.Example != nil && mt.Example.Value != "" {
-		return []byte(mt.Example.Value), nil
-	}
-	if len(mt.Examples) > 0 {
-		for _, e := range mt.Examples {
-			if e != nil && e.Value != nil && e.Value.Value != "" {
-				return []byte(e.Value.Value), nil
-			}
-		}
-	}
-	if mt.Schema != nil {
-		s := resolveSchema(idx, mt.Schema)
-		if s != nil {
-			return minimalJSONFromSchema(idx, s), nil
-		}
-	}
-	return nil, nil
+	return mock.Body, mock.ContentType, nil
 }
 
 func minimalJSONFromSchema(idx *navigator.Index, s *navigator.Schema) []byte {

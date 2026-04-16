@@ -12,7 +12,7 @@ import (
 	navigator "github.com/sailpoint-oss/navigator"
 )
 
-func loadTestIndex(t *testing.T) (string, *navigator.Index) {
+func loadTestIndex(t *testing.T) (string, string, *navigator.Index) {
 	t.Helper()
 	baseURL, specURL, cleanup := testserver.StartTestServer(t)
 	t.Cleanup(cleanup)
@@ -23,7 +23,7 @@ func loadTestIndex(t *testing.T) (string, *navigator.Index) {
 	if err := internalopenapi.Validate(idx); err != nil {
 		t.Fatalf("validate spec: %v", err)
 	}
-	return baseURL, idx
+	return baseURL, specURL, idx
 }
 
 func TestStart_NilConfig(t *testing.T) {
@@ -37,7 +37,7 @@ func TestStart_NilConfig(t *testing.T) {
 }
 
 func TestRunWithIndex_AndStartWithIndex(t *testing.T) {
-	baseURL, idx := loadTestIndex(t)
+	baseURL, specURL, idx := loadTestIndex(t)
 
 	cl, err := runner.NewClient(nil)
 	if err != nil {
@@ -46,6 +46,7 @@ func TestRunWithIndex_AndStartWithIndex(t *testing.T) {
 	result, err := RunWithIndex(context.Background(), idx, baseURL, &RunOpts{
 		Client:      cl,
 		OperationID: "createWidget",
+		OpenAPISpec: specURL,
 	})
 	if err != nil {
 		t.Fatalf("RunWithIndex: %v", err)
@@ -64,6 +65,7 @@ func TestRunWithIndex_AndStartWithIndex(t *testing.T) {
 	job := StartWithIndex(context.Background(), idx, baseURL, &RunOpts{
 		Client:      cl2,
 		OperationID: "createWidget",
+		OpenAPISpec: specURL,
 	})
 	if job == nil {
 		t.Fatal("expected job")

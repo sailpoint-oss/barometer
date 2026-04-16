@@ -82,6 +82,7 @@ var (
 // orchestration callers that don't want to hand-build nested config structs.
 type ContractInput struct {
 	BaseURL         string
+	ProxyURL        string
 	Output          Format
 	OpenAPISpec     string
 	OpenAPITags     []string
@@ -94,6 +95,8 @@ type RunOpts struct {
 	Client      *Client
 	Tags        []string
 	OperationID string
+	OpenAPISpec string
+	ProxyURL    string
 	// Credentials maps OpenAPI security scheme names to secret values (API keys, bearer tokens, etc.).
 	Credentials map[string]string
 }
@@ -116,7 +119,8 @@ func (in ContractInput) ToConfig() (*Config, error) {
 		return nil, ErrTargetRequired
 	}
 	cfg := &Config{
-		BaseURL: strings.TrimSpace(in.BaseURL),
+		BaseURL:  strings.TrimSpace(in.BaseURL),
+		ProxyURL: strings.TrimSpace(in.ProxyURL),
 	}
 	if in.Output != "" {
 		cfg.Output = string(in.Output)
@@ -173,7 +177,11 @@ func WriteOpenAPIReport(w io.Writer, results []OpenAPIContractResult, format For
 func Run(ctx context.Context, cfg *Config, client *Client) (*Result, error) {
 	if client == nil {
 		var err error
-		client, err = NewClient(nil)
+		var clientCfg *ClientConfig
+		if cfg != nil && strings.TrimSpace(cfg.ProxyURL) != "" {
+			clientCfg = &ClientConfig{ProxyURL: cfg.ProxyURL}
+		}
+		client, err = NewClient(clientCfg)
 		if err != nil {
 			return nil, err
 		}
@@ -193,7 +201,7 @@ func RunWithIndex(ctx context.Context, idx *navigator.Index, baseURL string, opt
 	client := opts.Client
 	if client == nil {
 		var err error
-		client, err = NewClient(nil)
+		client, err = NewClient(&ClientConfig{ProxyURL: opts.ProxyURL})
 		if err != nil {
 			return nil, err
 		}
@@ -201,6 +209,13 @@ func RunWithIndex(ctx context.Context, idx *navigator.Index, baseURL string, opt
 	contractOpts := &openapi.ContractOpts{
 		Tags: opts.Tags, OperationID: opts.OperationID,
 		Credentials: opts.Credentials,
+	}
+	if strings.TrimSpace(opts.OpenAPISpec) != "" {
+		responseValidator, err := openapi.NewLibOpenAPIResponseValidator(ctx, opts.OpenAPISpec, client.Client)
+		if err != nil {
+			return nil, err
+		}
+		contractOpts.ResponseValidator = responseValidator
 	}
 	results, err := openapi.RunContract(ctx, idx, baseURL, client, contractOpts)
 	if err != nil {
@@ -233,7 +248,7 @@ func StartWithIndex(ctx context.Context, idx *navigator.Index, baseURL string, o
 	client := opts.Client
 	if client == nil {
 		var err error
-		client, err = NewClient(nil)
+		client, err = NewClient(&ClientConfig{ProxyURL: opts.ProxyURL})
 		if err != nil {
 			job := &Job{
 				state: "failed",
@@ -327,7 +342,11 @@ func Start(ctx context.Context, cfg *Config, client *Client) (*Job, error) {
 	}
 	if client == nil {
 		var err error
-		client, err = NewClient(nil)
+		var clientCfg *ClientConfig
+		if strings.TrimSpace(cfg.ProxyURL) != "" {
+			clientCfg = &ClientConfig{ProxyURL: cfg.ProxyURL}
+		}
+		client, err = NewClient(clientCfg)
 		if err != nil {
 			return nil, err
 		}

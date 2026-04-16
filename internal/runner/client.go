@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 )
@@ -30,6 +31,8 @@ type Config struct {
 	TLSCACertFile string
 	// Auth applies to every request (e.g. Bearer token, API key header).
 	Auth func(*http.Request)
+	// ProxyURL routes requests through an explicit proxy when set.
+	ProxyURL string
 }
 
 // NewClient returns a new runner client with the given config.
@@ -46,6 +49,13 @@ func NewClient(cfg *Config) (*Client, error) {
 	}
 	if transport.MaxIdleConnsPerHost == 0 {
 		transport.MaxIdleConnsPerHost = 10
+	}
+	if proxyURL := cfg.ProxyURL; proxyURL != "" {
+		u, err := url.Parse(proxyURL)
+		if err != nil {
+			return nil, fmt.Errorf("parse proxy URL: %w", err)
+		}
+		transport.Proxy = http.ProxyURL(u)
 	}
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: cfg.SkipTLSVerify,

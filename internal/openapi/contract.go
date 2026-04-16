@@ -1,8 +1,12 @@
 package openapi
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 
 	"github.com/sailpoint-oss/barometer/internal/runner"
@@ -67,15 +71,25 @@ func RunContract(ctx context.Context, idx *navigator.Index, baseURL string, clie
 			continue
 		}
 		statusCode := resp.StatusCode
-		err = ValidateResponse(ctx, idx, resp, op, statusCode)
+		bodyBytes, readErr := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		pass := err == nil
+		if readErr != nil {
+			results = append(results, ContractResult{
+				Path: opr.Path, Method: opr.Method, OperationID: op.OperationID,
+				Pass: false, Status: statusCode, Error: readErr.Error(),
+			})
+			continue
+		}
+		legacyErr := ValidateResponse(ctx, idx, cloneResponse(resp, bodyBytes), op, statusCode)
+		var validatorErrs []ValidationError
+		if opts.ResponseValidator != nil {
+			validatorErrs = opts.ResponseValidator.ValidateResponse(req, cloneResponse(resp, bodyBytes))
+		}
+		mergedErr, guidelineID, docURL := mergeValidationErrors(legacyErr, validatorErrs)
+		pass := mergedErr == nil
 		errStr := ""
-		guidelineID := ""
-		docURL := ""
-		if err != nil {
-			errStr = err.Error()
-			guidelineID, docURL = guidelineMetadataFromError(err)
+		if mergedErr != nil {
+			errStr = mergedErr.Error()
 		}
 		results = append(results, ContractResult{
 			Path: opr.Path, Method: opr.Method, OperationID: op.OperationID,
@@ -91,7 +105,42 @@ type ContractOpts struct {
 	OperationID string
 	// Credentials maps security scheme name (components.securitySchemes) to secret values
 	// (API keys, bearer tokens, basic "user:pass", OAuth access tokens). Resolved by the host.
-	Credentials map[string]string
+	Credentials       map[string]string
+	ResponseValidator ResponseValidator
+}
+
+func cloneResponse(resp *http.Response, body []byte) *http.Response {
+	if resp == nil {
+		return nil
+	}
+	clone := new(http.Response)
+	*clone = *resp
+	clone.Header = resp.Header.Clone()
+	if body != nil {
+		clone.Body = io.NopCloser(bytes.NewReader(body))
+		clone.ContentLength = int64(len(body))
+	} else {
+		clone.Body = http.NoBody
+		clone.ContentLength = 0
+	}
+	return clone
+}
+
+func mergeValidationErrors(legacyErr error, validatorErrs []ValidationError) (error, string, string) {
+	var parts []string
+	guidelineID := ""
+	docURL := ""
+	if legacyErr != nil {
+		parts = append(parts, legacyErr.Error())
+		guidelineID, docURL = guidelineMetadataFromError(legacyErr)
+	}
+	for _, err := range validatorErrs {
+		parts = append(parts, err.Error())
+	}
+	if len(parts) == 0 {
+		return nil, guidelineID, docURL
+	}
+	return errors.New(strings.Join(parts, "; ")), guidelineID, docURL
 }
 
 func hasAnyTag(opTags, filter []string) bool {
